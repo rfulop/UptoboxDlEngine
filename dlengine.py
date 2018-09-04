@@ -185,10 +185,11 @@ if __name__ == '__main__':
     if sys.version_info[0] < 3:
         print('You have to run this scrpt on Python 3.')
         sys.exit()
-    elif len(sys.argv) != 2:
+    elif len(sys.argv) > 2:
         sys.argv[1] = ' '.join(sys.argv[1:])
         sys.argv = sys.argv[:2]
 
+    args = parser_cl()
     if not config.API_KEY:
         print('No Uptobox token has been found on config.py file.\nYou can have it with a registered or a premium Uptobox account.\n'
               'If this value is empty will not be able to download, but only find an Uptobox link.')
@@ -202,6 +203,5 @@ if __name__ == '__main__':
             sys.exit()
         print('\n')
 
-    args = parser_cl()
     engine = ZoneTel()
     engine.process(args.file)
