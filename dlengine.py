@@ -189,6 +189,19 @@ if __name__ == '__main__':
         sys.argv[1] = ' '.join(sys.argv[1:])
         sys.argv = sys.argv[:2]
 
+    if not config.API_KEY:
+        print('No Uptobox token has been found on config.py file.\nYou can have it with a registered or a premium Uptobox account.\n'
+              'If this value is empty will not be able to download, but only find an Uptobox link.')
+        while True:
+            query = input('\nDo you still want to continue ? (yes / no) : ')
+            if query == '' or not query[0].lower() in ['y', 'n']:
+                print('Please answer with yes or no!')
+            else:
+                break
+        if query[0].lower() == 'n':
+            sys.exit()
+        print('\n')
+
     args = parser_cl()
     engine = ZoneTel()
     engine.process(args.file)
