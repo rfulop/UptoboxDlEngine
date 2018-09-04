@@ -1,6 +1,9 @@
 # Uptobox Downloader
 Downloader based on zone-telechargement and uptobox.
-Still in developpement (It means many bugs can appear. So please be indulgent.)
+
+## Still in developpement
+It means many bugs can appear. So please be indulgent.  
+Partitioned things like series or big games are not supported yet.
 
 ## Project Overview
 This script is currently workink only on UNIX and it requests python3.
