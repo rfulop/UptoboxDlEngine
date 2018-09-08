@@ -1,18 +1,24 @@
 import sys
+import os
 import re
 import time
 import argparse
 import requests
 import bs4 as BeautifulSoup
-import config
 import subprocess
+
+import config
 
 
 class ZoneTel(object):
-    def __init__(self):
+    def __init__(self, searched_file=None):
         self.pathurl = 'https://ww1.zone-telechargement1.org/index.php?do=search'
         self.results = []
         self.API_KEY = config.API_KEY
+        self.searched_file = searched_file
+
+    def reset(self):
+        self.results = []
 
     def search(self, searched_file):
         result_from = 1
@@ -33,27 +39,49 @@ class ZoneTel(object):
             result_from += 25
             search_start += 1
 
-    def process(self, searched_file):
+    def process(self, searched_file=None):
+        if not searched_file:
+            searched_file = self.searched_file
+
         self.search(searched_file)
         self.results = sorted(self.results, key=lambda k: int(k['quality'][:-1]) if k['quality'] and k['quality'][:-1].isdigit() else 0, reverse=True)
         if not self.results:
             print('0 result has been found for "%s".' % searched_file)
             return
 
-        while 1:
-            try:
+        try:
+            protected_urls = None
+            while not protected_urls:
+                os.system('clear')
                 chosen_url = self.pick_choice()
+                os.system('clear')
                 if chosen_url is None:
                     return
                 protected_urls = self.get_protected_link(chosen_url)
-                uptobox_links = [self.get_uptobox_link(protected_url) for protected_url in protected_urls]
+                os.system('clear')
 
-            except Exception as e:
-                print(e)
-                return
+            uptobox_links = [self.get_uptobox_link(protected_url) for protected_url in protected_urls]
 
-            uptobox_engine = UptoboxDlEngine(uptobox_links)
-            uptobox_engine.download()
+        except Exception as e:
+            print(e)
+            return
+
+        uptobox_engine = UptoboxDlEngine(uptobox_links)
+        uptobox_engine.download()
+        os.system('clear')
+
+        while True:
+            query = input('Do you want to search something else ? (yes / no) : ')
+            if query == '' or not query[0].lower() in ['y', 'n']:
+                print('Please answer with yes or no!')
+            else:
+                break
+        if query[0].lower() == 'n':
+            sys.exit()
+        else:
+            self.searched_file = input('New search: ')
+            self.reset()
+            self.process()
 
     def parse(self, response):
         soup = BeautifulSoup.BeautifulSoup(response.text, features="lxml")
@@ -84,33 +112,40 @@ class ZoneTel(object):
                 sorted_res[i['language']] = []
             sorted_res[i['language']].append(i)
 
-        print('Found results :')
+        print("Results found for '%s' :" % self.searched_file)
 
         i = 1
         links_tab = []
         for lang in sorted_res:
-            print('%s :' % lang)
+            print('In %s :' % lang)
             for link in sorted_res[lang]:
                 print('\t%d - %s %s -> %s' % (i, link['quality'], link['format'], link['name']))
                 i += 1
                 links_tab.append(link['zt_url'])
+        print('\n%d - New search' % i)
+        print('0 - Quit')
 
         while True:
             try:
-                pick = int(input('\nWhat do you want to download ? (0 for leave): '))
-                if 0 <= pick <= i - 1:
+                pick = int(input('\nWhat do you want to download ? '))
+                if 0 <= pick <= i:
                     break
                 else:
-                    print('Enter a number between %d and %d.' % (0, i - 1))
+                    print('Enter a number between %d and %d.' % (0, i))
             except (ValueError, NameError):
-                print('Enter a number between %d and %d.' % (0, i - 1))
+                print('Enter a number between %d and %d.' % (0, i))
 
         if not pick:
             return None
+        if pick is i:
+            self.searched_file = input('New search: ')
+            self.reset()
+            self.process()
+            return None
+
         return links_tab[pick - 1]
 
-    @staticmethod
-    def get_protected_link(zt_url):
+    def get_protected_link(self, zt_url):
         r = requests.get(zt_url)
 
         str_start = '<div class="postinfo"><font color=red>'
@@ -119,7 +154,7 @@ class ZoneTel(object):
         title_end = tmp_text.find('</font>')
         title = r.text[title_start+len(str_start):title_start+title_end]
 
-        print('\nYou are about to download %s.' % title)
+        print('You are about to download %s.' % title)
 
         resp = r.text[:r.text.find('Commentaires')]
 
@@ -172,25 +207,33 @@ class ZoneTel(object):
                     return [elem[0]['url']]
 
         print('\nWe found this parts:')
+        i = 1
         if len(all_protect_links) is 1:
-            i = 1
             for link in all_protect_links[0]:
                 print('%d - %s' % (i, link['name']))
                 i = i + 1
             print('\n0 - Download everything')
+            print('%d - Go back' % i)
+            print('%d - Quit' % (i + 1))
+
             #todo: its a copy/paste from above / change this asap, this is ugly
             while True:
                 try:
-                    pick = int(input('\nWhat do you want to download ? (0 for download everything): '))
-                    if 0 <= pick <= i - 1:
+                    pick = int(input('\nWhat do you want to download ? '))
+                    if 0 <= pick <= i + 1:
                         break
                     else:
-                        print('Enter a number between %d and %d.' % (0, i - 1))
+                        print('Enter a number between %d and %d.' % (0, i + 1))
                 except (ValueError, NameError):
-                    print('Enter a number between %d and %d.' % (0, i - 1))
+                    print('Enter a number between %d and %d.' % (0, i + 1))
 
             if not pick:
                 return [link['url'] for link in all_protect_links[0]]
+            elif pick is i:
+                return None
+
+            elif pick is i + 1:
+                sys.exit()
             else:
                 return [all_protect_links[0][pick - 1]['url']]
         else:
@@ -311,5 +354,5 @@ if __name__ == '__main__':
             sys.exit()
         print('\n')
 
-    engine = ZoneTel()
-    engine.process(args.file)
+    engine = ZoneTel(args.file)
+    engine.process()
